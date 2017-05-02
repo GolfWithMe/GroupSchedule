@@ -1,0 +1,60 @@
+--
+-- Table structure for table `akzwy_gwm_group_schedule`
+--
+
+CREATE TABLE IF NOT EXISTS `akzwy_gwm_group_schedule` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `selgroup` int(11) NOT NULL,
+  `coursetype` varchar(100) NOT NULL,
+  `selcourse` int(11) NOT NULL,
+  `picks` varchar(50) NOT NULL,
+  `responses` varchar(50) NOT NULL,
+  `notify` varchar(100) NOT NULL,
+  `uid` int(11) NOT NULL,
+  `adate` datetime NOT NULL,
+  `status` int(2) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 AUTO_INCREMENT=1 ;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `akzwy_gwm_group_schedule_accept`
+--
+
+CREATE TABLE IF NOT EXISTS `akzwy_gwm_group_schedule_accept` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `gsid` int(11) NOT NULL,
+  `userid` int(11) NOT NULL,
+  `sdate` int(11) NOT NULL,
+  `status` int(2) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 AUTO_INCREMENT=1 ;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `akzwy_gwm_group_schedule_date`
+--
+
+CREATE TABLE IF NOT EXISTS `akzwy_gwm_group_schedule_date` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `gsid` int(11) NOT NULL,
+  `sdate` varchar(100) NOT NULL,
+  `status` int(2) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 AUTO_INCREMENT=1 ;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `akzwy_gwm_group_schedule_member`
+--
+
+CREATE TABLE IF NOT EXISTS `akzwy_gwm_group_schedule_member` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `gsid` int(11) NOT NULL,
+  `memid` int(11) NOT NULL,
+  `status` int(2) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 AUTO_INCREMENT=1 ;

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<metadata>
+	<view title="GroupSchedule">
+		<message>
+			<![CDATA[
+				Group Schedule view
+			]]>
+		</message>
+		<options var="task">
+ 			<default name="- View Requests" msg="Displays all Group Schedule for the user" />
+			<option value="newrequest" name="- New Request" msg="New Schedule Request" />
+ 		</options>
+	</view>
+	<state>
+		<name>Group Schedule Layout</name>
+		<description>Group Schedule listings layout</description>
+	</state>
+</metadata>
