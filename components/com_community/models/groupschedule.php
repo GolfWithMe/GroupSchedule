@@ -1,4 +1,5 @@
 <?php
+//GWMFile
 /**
  * @copyright (C) 2013 iJoomla, Inc. - All rights reserved.
  * @license GNU General Public License, version 2 (http://www.gnu.org/licenses/gpl-2.0.html)
@@ -74,14 +75,16 @@ class CommunityModelGroupschedule extends JCCModel
 
 				$query	= 'SELECT a.* FROM '
 						. $db->quoteName('#__community_groups') . ' AS a '
-						//. ' INNER JOIN ' . $db->quoteName('#__community_groups_members') . ' AS b '
-						//. ' ON a.'.$db->quoteName('id').'=b.'.$db->quoteName('groupid')
-						//. ' AND b.'.$db->quoteName('approved').'=' . $db->Quote( '1' )
+						. ' INNER JOIN ' . $db->quoteName('#__community_groups_members') . ' AS b '
+						. ' ON a.'.$db->quoteName('id').'=b.'.$db->quoteName('groupid')
 						. ' WHERE 1'
+                                                . ' AND b.'.$db->quoteName('approved').'=' . $db->Quote( '1' )
 						. ' AND a.'.$db->quoteName('published').'=' . $db->Quote( '1' ) . ' '
 						. $extraSQL
 						. $orderBy
 						. $limitSQL;
+                                
+                                //echo $query; 
 				break;
 		}
 
@@ -94,7 +97,7 @@ class CommunityModelGroupschedule extends JCCModel
 		}
 
 		$query	= 'SELECT COUNT(*) FROM ' . $db->quoteName('#__community_groups') . ' AS a '
-				//. ' INNER JOIN ' . $db->quoteName('#__community_groups_members') . ' AS b '
+				. ' INNER JOIN ' . $db->quoteName('#__community_groups_members') . ' AS b '
 				//. ' WHERE a.'.$db->quoteName('id').'=b.'.$db->quoteName('groupid')
 				. ' WHERE 1'
 				. ' AND a.'.$db->quoteName('published').'=' . $db->Quote( '1' ) . ' '
@@ -120,47 +123,47 @@ class CommunityModelGroupschedule extends JCCModel
 	
 	public function getGroupsMembers( $groupId = null , $useLimit = false )
 	{
-		$db		= $this->getDBO();
-		
-		if( !is_null($groupId) )
-		{
-			$extraSQL	= ' AND a.groupid=' . $db->Quote($groupId);
-		}
+            $db		= $this->getDBO();
 
-		$orderBy	= '';
+            if( !is_null($groupId) )
+            {
+                    $extraSQL	= ' AND a.groupid=' . $db->Quote($groupId);
+            }
 
-		$limitSQL = '';
-		$total		= 0;
-		$limit		= $this->getState('limit');
-		$limitstart = $this->getState('limitstart');
-		if($useLimit){
-			$limitSQL	= ' LIMIT ' . $limitstart . ',' . $limit ;
-		}
-		
-		$orderBy	= ' ORDER BY a.memberid ASC ';	
+            $orderBy	= '';
 
-		$query	= 'SELECT a.* FROM '
-				. $db->quoteName('#__community_groups_members') . ' AS a '
-				. ' WHERE 1'
-				. $extraSQL
-				. $orderBy
-				. $limitSQL;
+            $limitSQL = '';
+            $total		= 0;
+            $limit		= $this->getState('limit');
+            $limitstart = $this->getState('limitstart');
+            if($useLimit){
+                    $limitSQL	= ' LIMIT ' . $limitstart . ',' . $limit ;
+            }
 
-		$db->setQuery( $query );
+            $orderBy	= ' ORDER BY a.memberid ASC ';	
 
-		try {
-			$result = $db->loadObjectList();
-		} catch (Exception $e) {
-			JFactory::getApplication()->enqueueMessage($e->getMessage(), 'error');
-		}
-		
-		$cusers = array();
-        for ($i = 0; $i < count($result); $i++)
-        {
+            $query	= 'SELECT a.* FROM '
+                            . $db->quoteName('#__community_groups_members') . ' AS a '
+                            . ' WHERE 1'
+                            . $extraSQL
+                            . $orderBy
+                            . $limitSQL;
 
-            $usr = CFactory::getUser($result[$i]->memberid);
-            $cusers[] = $usr;
-        }
+            $db->setQuery( $query );
+
+            try {
+                    $result = $db->loadObjectList();
+            } catch (Exception $e) {
+                    JFactory::getApplication()->enqueueMessage($e->getMessage(), 'error');
+            }
+
+            $cusers = array();
+            for ($i = 0; $i < count($result); $i++)
+            {
+
+                $usr = CFactory::getUser($result[$i]->memberid);
+                $cusers[] = $usr;
+            }
 		
 		return $cusers;
 
@@ -372,6 +375,21 @@ class CommunityModelGroupschedule extends JCCModel
 		
 	}
 	
+    public function getsdateRealTime($sd)
+    {
+
+        $my = CFactory::getUser();
+        $db= $this->getDBO();
+
+        $query = "SELECT sdate from " . $db->quoteName('#__gwm_group_schedule_date') . " WHERE id=" . $db->Quote($sd);
+        $db->setQuery($query);
+        $db->execute();
+        $sd = $db->loadResult();
+
+        return $sd;
+
+    }
+        
 	public function addGroupSchedule($id, $fieldset)
     {
         $my = CFactory::getUser();
@@ -430,7 +448,58 @@ class CommunityModelGroupschedule extends JCCModel
         return $this;
     }
 	
-	public function getPendingSchedule( $userid, $useLimit = false )
+	public function getExpireSchedule()
+	{
+		$db		= $this->getDBO();
+		
+		$extraSQL.= ' AND a.status=' . $db->Quote(1);
+		
+		$query	= 'SELECT a.* FROM '
+				. $db->quoteName('#__gwm_group_schedule') . ' AS a '
+				. ' WHERE 1'
+				. $extraSQL;
+
+		$db->setQuery( $query );
+
+		try {
+			$result = $db->loadObjectList();
+		} catch (Exception $e) {
+			JFactory::getApplication()->enqueueMessage($e->getMessage(), 'error');
+		}
+		
+		$today=date("m/d/Y h:i a");
+		$usergroup=' AND a.id IN(0';
+        for ($i = 0; $i < count($result); $i++)
+        {
+			$gsid=$result[$i]->id;
+			$scheduleDate = $this->getGroupScheduleDate($gsid);
+			$totdate=count($scheduleDate);
+			$exp=0;
+			foreach ( $scheduleDate as $rowdate ) {
+				$seldate=$rowdate->sdate;
+				if(strtotime($today) > strtotime($seldate)) {
+					$exp=$exp+1;
+				} 
+			}
+			if($totdate==$exp) {
+           		//expiry status = 2
+				//echo $gsid .'-';
+				$query	= 'UPDATE '. $db->quoteName('#__gwm_group_schedule')
+            			.' SET ' . $db->quoteName('status').' = '.$db->Quote(2)
+						.' WHERE '.$db->quoteName('id').'='.$db->Quote($gsid);
+
+				$db->setQuery($query);
+				$db->execute();			
+			}
+        }
+		
+		$success = true;
+		
+		return $success;
+		
+	}
+	
+	public function getPendingSchedule( $userid)
 	{
 		$db		= $this->getDBO();
 
@@ -438,23 +507,94 @@ class CommunityModelGroupschedule extends JCCModel
 
 		$limitSQL = '';
 		$total		= 0;
-		$limit		= $this->getState('limit');
-		$limitstart = $this->getState('limitstart');
-		if($useLimit){
-			$limitSQL	= ' LIMIT ' . $limitstart . ',' . $limit ;
-		}
 		
 		$extraSQL	= ' AND a.memid=' . $db->Quote($userid);
 		$extraSQL.= ' AND a.status=' . $db->Quote(0);
+		$extraSQL.= ' AND fl.status=' . $db->Quote(1);
 		
 		$orderBy	= ' ORDER BY a.id DESC ';	
 
 		$query	= 'SELECT a.* FROM '
 				. $db->quoteName('#__gwm_group_schedule_member') . ' AS a '
+				.' join '. $db->quoteName('#__gwm_group_schedule').' fl on (a.'. $db->quoteName('gsid').'=fl.'. $db->quoteName('id').')'
 				. ' WHERE 1'
 				. $extraSQL
-				. $orderBy
-				. $limitSQL;
+				. $orderBy;
+
+                //echo $query;
+		$db->setQuery( $query );
+
+		try {
+			$result = $db->loadObjectList();
+		} catch (Exception $e) {
+			JFactory::getApplication()->enqueueMessage($e->getMessage(), 'error');
+		}
+		
+		//print_r($result);
+		
+		return $result;
+
+		
+	}
+	
+	public function getRejectedSchedule( $userid)
+	{
+		$db		= $this->getDBO();
+
+		$orderBy	= '';
+
+		$limitSQL = '';
+		$total		= 0;
+		
+		$extraSQL	= ' AND a.memid=' . $db->Quote($userid);
+		$extraSQL.= ' AND a.status=' . $db->Quote(2);
+		$extraSQL.= ' AND fl.status=' . $db->Quote(1);
+		
+		$orderBy	= ' ORDER BY a.id DESC ';	
+
+		$query	= 'SELECT a.* FROM '
+				. $db->quoteName('#__gwm_group_schedule_member') . ' AS a '
+				.' join '. $db->quoteName('#__gwm_group_schedule').' fl on (a.'. $db->quoteName('gsid').'=fl.'. $db->quoteName('id').')'
+				. ' WHERE 1'
+				. $extraSQL
+				. $orderBy;
+
+		$db->setQuery( $query );
+
+		try {
+			$result = $db->loadObjectList();
+		} catch (Exception $e) {
+			JFactory::getApplication()->enqueueMessage($e->getMessage(), 'error');
+		}
+		
+		//print_r($result);
+		
+		return $result;
+
+		
+	}
+	
+	public function getUserAcceptSchedule($userid)
+	{
+		$db		= $this->getDBO();
+
+		$orderBy	= '';
+
+		$limitSQL = '';
+		$total		= 0;
+		
+		$extraSQL	= ' AND a.userid=' . $db->Quote($userid);
+		$extraSQL.= ' AND a.status=' . $db->Quote(1);
+		$extraSQL.= ' AND fl.status=' . $db->Quote(1);
+		
+		$orderBy	= ' ORDER BY a.id DESC ';	
+
+		$query	= 'SELECT a.* FROM '
+				. $db->quoteName('#__gwm_group_schedule_accept') . ' AS a '
+				.' join '. $db->quoteName('#__gwm_group_schedule').' fl on (a.'. $db->quoteName('gsid').'=fl.'. $db->quoteName('id').')'
+				. ' WHERE 1'
+				. $extraSQL
+				. $orderBy;
 
 		$db->setQuery( $query );
 
@@ -511,7 +651,7 @@ class CommunityModelGroupschedule extends JCCModel
 		
 	}
 	
-	public function getGroupScheduleList( $userId, $useLimit = false )
+	public function getGroupScheduleList( $userId)
 	{
 		$db		= $this->getDBO();
 
@@ -519,11 +659,6 @@ class CommunityModelGroupschedule extends JCCModel
 
 		$limitSQL = '';
 		$total		= 0;
-		$limit		= $this->getState('limit');
-		$limitstart = $this->getState('limitstart');
-		if($useLimit){
-			$limitSQL	= ' LIMIT ' . $limitstart . ',' . $limit ;
-		}
 		
 		$extraSQL	= ' AND a.uid=' . $db->Quote($userId);
 		
@@ -551,7 +686,7 @@ class CommunityModelGroupschedule extends JCCModel
 		
 	}
 	
-	public function getGroupScheduleListClose( $userId, $useLimit = false )
+	public function getGroupScheduleEmail()
 	{
 		$db		= $this->getDBO();
 
@@ -559,22 +694,15 @@ class CommunityModelGroupschedule extends JCCModel
 
 		$limitSQL = '';
 		$total		= 0;
-		$limit		= $this->getState('limit');
-		$limitstart = $this->getState('limitstart');
-		if($useLimit){
-			$limitSQL	= ' LIMIT ' . $limitstart . ',' . $limit ;
-		}
 		
-		$extraSQL	= ' AND a.uid=' . $db->Quote($userId);
+		$extraSQL	= ' AND a.status=' . $db->Quote(1);
 		
 		$orderBy	= ' ORDER BY a.id DESC ';	
 
 		$query	= 'SELECT a.* FROM '
 				. $db->quoteName('#__gwm_group_schedule') . ' AS a '
-				.' join '. $db->quoteName('#__gwm_group_schedule_accept').' fl on (a.'. $db->quoteName('id').'=fl.'. $db->quoteName('gsid').')'
-				.' WHERE fl.'. $db->quoteName('status').'='.$db->Quote(1)
+				. ' WHERE 1'
 				. $extraSQL
-				.' GROUP BY fl.'. $db->quoteName('gsid')
 				. $orderBy
 				. $limitSQL;
 
@@ -593,6 +721,119 @@ class CommunityModelGroupschedule extends JCCModel
 		
 	}
 	
+	public function getGroupScheduleListClose( $userId)
+	{
+		$db		= $this->getDBO();
+
+		$orderBy	= '';
+
+		$limitSQL = '';
+		$total		= 0;	
+		
+		$extraSQL	= ' AND a.uid=' . $db->Quote($userId);
+		//$extraSQL.=' AND a.status=' . $db->Quote(1);
+		
+		$orderBy	= ' ORDER BY a.id DESC ';	
+
+		$query	= 'SELECT a.* FROM '
+				. $db->quoteName('#__gwm_group_schedule') . ' AS a '
+				.' join '. $db->quoteName('#__gwm_group_schedule_accept').' fl on (a.'. $db->quoteName('id').'=fl.'. $db->quoteName('gsid').')'
+				.' WHERE fl.'. $db->quoteName('status').'='.$db->Quote(1)
+				. $extraSQL
+				.' GROUP BY fl.'. $db->quoteName('gsid')
+				. $orderBy;
+                //echo $query;
+		$db->setQuery( $query );
+
+		try {
+			$result = $db->loadObjectList();
+		} catch (Exception $e) {
+			JFactory::getApplication()->enqueueMessage($e->getMessage(), 'error');
+		}
+		
+                //echo "group1";
+		//print_r($result);
+		
+		return $result;
+
+		
+	}
+        
+        public function getGroupScheduleListCloseNoAccepts( $userId)
+	{
+		$db		= $this->getDBO();
+
+		$orderBy	= '';
+
+		$limitSQL = '';
+		$total		= 0;	
+		
+		$extraSQL	= ' a.uid=' . $db->Quote($userId);
+		$extraSQL.=' AND a.status=' . $db->Quote(1);
+                $extraSQL.=' AND (a.teetime="" or a.teetime is null)';
+		
+		$orderBy	= ' ORDER BY a.id DESC ';	
+
+		$query	= 'SELECT a.* FROM '
+				. $db->quoteName('#__gwm_group_schedule') . ' AS a '
+				.' WHERE '
+				. $extraSQL
+				. $orderBy;
+                //echo $query;
+		$db->setQuery( $query );
+
+		try {
+			$result = $db->loadObjectList();
+		} catch (Exception $e) {
+			JFactory::getApplication()->enqueueMessage($e->getMessage(), 'error');
+		}
+		
+                //echo "group2";
+		//print_r($result);
+		
+		return $result;
+
+		
+	}
+	
+        public function getGroupScheduleListCloseByRequest( $userId)
+	{
+		$db		= $this->getDBO();
+
+		$orderBy	= '';
+
+		$limitSQL = '';
+		$total		= 0;	
+		
+		$extraSQL	= ' AND a.uid=' . $db->Quote($userId);
+		//$extraSQL.=' AND a.status=' . $db->Quote(1);
+		
+		$orderBy	= ' ORDER BY a.id DESC ';	
+
+		$query	= 'SELECT a.* FROM '
+				. $db->quoteName('#__gwm_group_schedule') . ' AS a '
+				.' join '. $db->quoteName('#__gwm_group_schedule_accept').' fl on (a.'. $db->quoteName('id').'=fl.'. $db->quoteName('gsid').')'
+				.' WHERE fl.'. $db->quoteName('status').'='.$db->Quote(1)
+				. $extraSQL
+				.' GROUP BY fl.'. $db->quoteName('gsid')
+				. $orderBy;
+                echo $query;
+		$db->setQuery( $query );
+
+		try {
+			$result = $db->loadObjectList();
+		} catch (Exception $e) {
+			JFactory::getApplication()->enqueueMessage($e->getMessage(), 'error');
+		}
+		
+                //echo "group1";
+		print_r($result);
+		
+		return $result;
+
+		
+	}
+        
 	public function getGroupScheduleDate( $gsid, $useLimit = false )
 	{
 		$db		= $this->getDBO();
@@ -633,7 +874,7 @@ class CommunityModelGroupschedule extends JCCModel
 		
 	}
 	
-	public function getGroupScheduleMember( $gsid, $useLimit = false )
+	public function getGroupScheduleMember( $gsid)
 	{
 		$db		= $this->getDBO();
 
@@ -641,11 +882,6 @@ class CommunityModelGroupschedule extends JCCModel
 
 		$limitSQL = '';
 		$total		= 0;
-		$limit		= $this->getState('limit');
-		$limitstart = $this->getState('limitstart');
-		if($useLimit){
-			$limitSQL	= ' LIMIT ' . $limitstart . ',' . $limit ;
-		}
 		
 		$extraSQL	= ' AND a.gsid=' . $db->Quote($gsid);
 		
@@ -765,43 +1001,22 @@ class CommunityModelGroupschedule extends JCCModel
         return $this;
     }
 	
-	public function getGroupScheduleAcceptCount( $gsid, $sdate, $status = false )
-	{
-		$db		= $this->getDBO();
-		
-		$extraSQL	= ' AND a.gsid=' . $db->Quote($gsid);
-		$extraSQL.= ' AND a.sdate=' . $db->Quote($sdate);
-		if($status){
-			$extraSQL.= ' AND a.status=' . $db->Quote($status);
-		}
-		
-		$orderBy	= ' ORDER BY a.id ASC ';	
-		
-		$query	= 'SELECT COUNT(*) FROM ' . $db->quoteName('#__gwm_group_schedule_accept') . ' AS a '
-				. ' WHERE 1'
-				. $extraSQL;
-
-		$db->setQuery( $query );
-		try {
-			$total = $db->loadResult();
-		} catch (Exception $e) {
-			JFactory::getApplication()->enqueueMessage($e->getMessage(), 'error');
-		}
-		
-		return $total;	
-	}
-	
-	public function updateRequestorAccept($id, $fieldset)
+	public function addGroupScheduleCancelRejected($id, $fieldset)
     {
         $my = CFactory::getUser();
         $db= $this->getDBO();
 
+        //if ($my->id == $id)
+        //{
+            //JFactory::getApplication()->enqueueMessage('SCHEDULE_ADD_YOURSELF_ERROR', 'error');
+        //}
+
         $date	= JDate::getInstance(); //get the time without any offset!
 		
-        $query	= 'UPDATE '. $db->quoteName('#__gwm_group_schedule_accept')
-            .' SET ' . $db->quoteName('status').' = '.$db->Quote(2)
-			.' WHERE '.$db->quoteName('gsid').'='.$db->Quote($fieldset['req'])
-			.' AND '.$db->quoteName('sdate').'='.$db->Quote($fieldset['sd']);
+        $query	= 'UPDATE '. $db->quoteName('#__gwm_group_schedule_member')
+            .' SET ' . $db->quoteName('status').' = '.$db->Quote(0)
+			.' WHERE '.$db->quoteName('gsid').'='.$db->Quote($fieldset['reqid'])
+			.' AND '.$db->quoteName('memid').'='.$db->Quote($id);
 
         $db->setQuery($query);
         try {
@@ -809,6 +1024,201 @@ class CommunityModelGroupschedule extends JCCModel
         } catch (Exception $e) {
             JFactory::getApplication()->enqueueMessage($e->getMessage(), 'error');
         }
+
+        return $this;
+    }
+	
+	public function userScheduleAcceptUpdate($fieldset)
+    {
+        $my = CFactory::getUser();
+        $db= $this->getDBO();
+
+        $date	= JDate::getInstance(); //get the time without any offset!
+		
+		//delete member date
+		$query	= 'DELETE FROM '. $db->quoteName('#__gwm_group_schedule_accept')
+			.' WHERE '.$db->quoteName('gsid').'='.$db->Quote($fieldset['gsid'])
+			.' AND '.$db->quoteName('userid').'='.$db->Quote($my->id)
+			.' AND '.$db->quoteName('sdate').'='.$db->Quote($fieldset['sid']);
+			
+		$db->setQuery($query);
+		$db->execute();
+		
+		//update member
+        $query	= 'UPDATE '. $db->quoteName('#__gwm_group_schedule_member')
+            .' SET ' . $db->quoteName('status').' = '.$db->Quote(0)
+			.' WHERE '.$db->quoteName('gsid').'='.$db->Quote($fieldset['gsid'])
+			.' AND '.$db->quoteName('memid').'='.$db->Quote($my->id);
+
+        $db->setQuery($query);
+	$db->execute();
+
+        return $this;
+    }
+	
+    public function getGroupScheduleAcceptCount( $gsid, $sdate, $status = false )
+    {
+        $db		= $this->getDBO();
+
+        $extraSQL	= ' AND a.gsid=' . $db->Quote($gsid);
+        $extraSQL.= ' AND a.sdate=' . $db->Quote($sdate);
+        if($status){
+                $extraSQL.= ' AND a.status=' . $db->Quote($status);
+        }
+
+        $orderBy	= ' ORDER BY a.id ASC ';	
+
+        $query	= 'SELECT COUNT(*) FROM ' . $db->quoteName('#__gwm_group_schedule_accept') . ' AS a '
+                        . ' WHERE 1'
+                        . $extraSQL;
+
+        $db->setQuery( $query );
+        try {
+                $total = $db->loadResult();
+        } catch (Exception $e) {
+                JFactory::getApplication()->enqueueMessage($e->getMessage(), 'error');
+        }
+
+        return $total;	
+    }
+    
+    public function getGroupScheduleAcceptedCount( $gsid, $status = false )
+    {
+        $db		= $this->getDBO();
+
+        $extraSQL	= ' AND a.gsid=' . $db->Quote($gsid);
+        if($status){
+                $extraSQL.= ' AND a.status=' . $db->Quote($status);
+        }
+
+        $orderBy	= ' ORDER BY a.id ASC ';	
+
+        $query	= 'SELECT COUNT(*) FROM ' . $db->quoteName('#__gwm_group_schedule_accept') . ' AS a '
+                        . ' WHERE 1'
+                        . $extraSQL;
+
+        $db->setQuery( $query );
+        try {
+                $total = $db->loadResult();
+        } catch (Exception $e) {
+                JFactory::getApplication()->enqueueMessage($e->getMessage(), 'error');
+        }
+
+        return $total;	
+    }
+	
+    public function updateRequestorAccept($id, $fieldset)
+    {
+        $my = CFactory::getUser();
+        $db= $this->getDBO();
+
+        $date	= JDate::getInstance(); //get the time without any offset!
+        
+	//update group schedule
+	$query	= 'UPDATE '. $db->quoteName('#__gwm_group_schedule')
+            .' SET ' . $db->quoteName('teetime').' = ' . $db->Quote(date("m-d-Y",strtotime($_REQUEST['chosentime'])) . " " . $fieldset['teetime'])
+            .' WHERE '.$db->quoteName('id').'='.$db->Quote($fieldset['req']);
+
+        $db->setQuery($query);
+	$db->execute();
+
+        //update user schedule
+        foreach($fieldset['member'] as $rowmem) {
+                //update group schedule accept
+                $query	= 'UPDATE '. $db->quoteName('#__gwm_group_schedule_accept')
+                        .' SET ' . $db->quoteName('status').' = '.$db->Quote(2)
+                        .' WHERE '.$db->quoteName('gsid').'='.$db->Quote($fieldset['req'])
+                        .' AND '.$db->quoteName('sdate').'='.$db->Quote($fieldset['sd'])
+                        .' AND '.$db->quoteName('userid').'='.$db->Quote($rowmem);
+
+                $db->setQuery($query);
+                $db->execute();
+        }
+        
+        // TODO: Add email sending to those that were not selected to play
+        
+        $query	= 'SELECT * from '. $db->quoteName('#__gwm_group_schedule_accept')
+			.' WHERE '.$db->quoteName('gsid').'='.$db->Quote($fieldset['req'])
+			.' AND '.$db->quoteName('status').'='.$db->Quote(1);
+        
+        $db->setQuery($query);
+        $db->execute();
+        
+        try {
+            $result = $db->loadObjectList();
+        } catch (Exception $e) {
+            JFactory::getApplication()->enqueueMessage($e->getMessage(), 'error');
+        }
+        
+        $config = CFactory::getConfig();
+        
+        //email
+        $mailer = JFactory::getMailer();
+        $sender = array( 
+                $config->get( 'mailfrom' ),
+                $config->get( 'fromname' ) 
+        );
+        $mailer->setSender($sender);
+
+        $subject='Confirmation '.$config->get('sitename');
+        $mailer->setSubject($subject);
+        
+        $groupsModel = CFactory::getModel('groupschedule');
+        $courseModel = CFactory::getModel('courses');
+        $gsData = $groupsModel->getGroupSchedule($fieldset['req']);
+        //DEBUG
+        //print_r($gsData);
+        $coursedata = $courseModel->getCourseDetails($gsData->selcourse);
+        //echo "<br>\r\n next <br>\r\n";
+        //print_r($coursedata);
+        //echo "<br>\r\n next <br>\r\n";
+        //echo $coursedata->Name;
+        
+        $userOwner = JFactory::getUser();
+	$sendName= $userOwner->name;
+        
+        foreach($result as $notGoingToPlay) {
+            $usr = CFactory::getUser($notGoingToPlay->userid);
+            $recipient = $usr->email;
+            $mailer->addRecipient($recipient);
+
+            //$body   = "Hi ".$usr->name." <br /><br /> Your friend " . $sendName . " invited you to a Golf-With-Me event at " . $coursedata['Name'] . ".  The tee time has been finalized and you were not selected.  Please continue to respond to future invites. <br /><br /> For more details, <a href='".JURI::base()."index.php?option=com_community&view=groupschedule'>click here.</a> <br /><br /> Thank You <br />The Golf With Me Team<br /><br /> <img src='".JURI::base()."images/gwmhorlogo2.png'>";
+            $body   = "Hi ".$usr->name." <br /><br /> Your friend " . $sendName . " invited you to a Golf-With-Me event at " . $coursedata->Name . ".  The tee time has been finalized and you were not selected.  Please continue to respond to future invites. <br /><br /> For more details, <a href='".JURI::base()."index.php?option=com_community&view=groupschedule'>click here.</a> <br /><br /> Thank You <br />The Golf With Me Team<br /><br /> <img src='".JURI::base()."images/gwmhorlogo2.png'>";
+            $mailer->isHtml(true);
+            $mailer->Encoding = 'base64';
+            $mailer->setBody($body);
+            $send = $mailer->Send();
+        }
+        
+        //set anyone that was not selected to play to cancelled (status =0)
+	$query	= 'UPDATE '. $db->quoteName('#__gwm_group_schedule_accept')
+            .' SET ' . $db->quoteName('status').' = '.$db->Quote(0)
+			.' WHERE '.$db->quoteName('gsid').'='.$db->Quote($fieldset['req'])
+			.' AND '.$db->quoteName('status').'='.$db->Quote(1);
+
+        $db->setQuery($query);
+        $db->execute();
+        
+        //set anyone that did not respond to closed so it does not show up on the waiting for response list. (status =0)
+	$query	= 'UPDATE '. $db->quoteName('#__gwm_group_schedule_member')
+            .' SET ' . $db->quoteName('status').' = '.$db->Quote(3)
+			.' WHERE '.$db->quoteName('gsid').'='.$db->Quote($fieldset['req'])
+			.' AND '.$db->quoteName('status').'='.$db->Quote(0);
+
+        $db->setQuery($query);
+        $db->execute();
+        
+        
+        // this seems to be adding the requestor to the list of people that have accepted.
+        $query	= 'INSERT '. $db->quoteName('#__gwm_group_schedule_accept')
+                .' (' . $db->quoteName('status').', ' .  $db->quoteName('gsid') . ', '
+                . $db->quoteName('sdate') . ', ' . $db->quoteName('userid') . ') VALUES ('
+                . $db->Quote(2) . ', ' .  $db->Quote($fieldset['req']) . ', '
+                . $db->Quote($fieldset['sd']) . ', ' . $db->Quote($id) . ')';
+
+        $db->setQuery($query);
+        $db->execute();
+
 
         return $this;
     }
@@ -835,7 +1245,164 @@ class CommunityModelGroupschedule extends JCCModel
         return $this;
     }
 	
-	public function getGroupScheduleAcceptList( $userId )
+	public function updateRequestDate($fieldset)
+    {
+        $my = CFactory::getUser();
+        $db= $this->getDBO();
+
+        $date	= JDate::getInstance(); //get the time without any offset!
+		
+		//update group schedule
+		$query	= 'UPDATE '. $db->quoteName('#__gwm_group_schedule_date')
+            .' SET ' . $db->quoteName('sdate').' = '.$db->Quote($fieldset['sdate'])
+			.' WHERE '.$db->quoteName('id').'='.$db->Quote($fieldset['did']);
+
+        $db->setQuery($query);
+	$db->execute();
+
+        return $this;
+    }
+	
+	public function deleteRequestDate($fieldset)
+    {
+        $my = CFactory::getUser();
+        $db= $this->getDBO();
+
+        $date	= JDate::getInstance(); //get the time without any offset!
+		
+        //update group schedule
+        $query	= 'DELETE FROM '. $db->quoteName('#__gwm_group_schedule_date')
+                .' WHERE '.$db->quoteName('id').'='.$db->Quote($fieldset['did']);
+
+        $db->setQuery($query);
+	$db->execute();
+
+        return $this;
+    }
+	
+    public function getGroupScheduleAcceptList( $userId )
+    {
+        $db		= $this->getDBO();
+
+        $orderBy	= '';
+
+        $extraSQL	= ' AND a.userid=' . $db->Quote($userId);
+        $extraSQL.= ' AND a.status=' . $db->Quote(2);
+        $extraSQL.= ' AND fl.status=' . $db->Quote(1);
+        $extraSQL.= ' AND fl.uid<>' . $db->Quote($userId);
+
+        $orderBy	= ' ORDER BY a.gsid DESC ';	
+
+        $query	= 'SELECT a.* FROM '
+                        . $db->quoteName('#__gwm_group_schedule_accept') . ' AS a '
+                        .' join '. $db->quoteName('#__gwm_group_schedule').' fl on (a.'. $db->quoteName('gsid').'=fl.'. $db->quoteName('id').')'
+                        . ' WHERE 1'
+                        . $extraSQL
+                        . $orderBy;
+
+        $db->setQuery( $query );
+
+        try {
+                $result = $db->loadObjectList();
+        } catch (Exception $e) {
+                JFactory::getApplication()->enqueueMessage($e->getMessage(), 'error');
+        }
+
+        $usergroup=' AND a.id IN(0';
+
+        for ($i = 0; $i < count($result); $i++)
+        {
+            $usergroup.=','.$result[$i]->gsid;
+        }
+        $usergroup.=') ';
+
+        $orderBy	= '';
+        $extraSQL	= $usergroup;
+
+        $limitSQL = '';
+        $total		= 0;
+
+        $orderBy	= ' ORDER BY a.id DESC ';
+
+        $query	= 'SELECT a.* FROM '
+                        . $db->quoteName('#__gwm_group_schedule') . ' AS a '
+                        . ' WHERE 1'
+                        . $extraSQL
+                        . $orderBy;
+
+        $db->setQuery( $query );
+
+        try {
+                $result = $db->loadObjectList();
+        } catch (Exception $e) {
+                JFactory::getApplication()->enqueueMessage($e->getMessage(), 'error');
+        }
+
+        return $result;
+    }
+	
+    public function getGroupScheduleAcceptListWithCreator( $userId )
+    {
+        $db		= $this->getDBO();
+
+        $orderBy	= '';
+
+        $extraSQL	= ' AND a.userid=' . $db->Quote($userId);
+        $extraSQL.= ' AND a.status=' . $db->Quote(2);
+        $extraSQL.= ' AND fl.status=' . $db->Quote(1);
+        //$extraSQL.= ' AND fl.uid<>' . $db->Quote($userId);
+
+        $orderBy	= ' ORDER BY a.gsid DESC ';	
+
+        $query	= 'SELECT a.* FROM '
+                        . $db->quoteName('#__gwm_group_schedule_accept') . ' AS a '
+                        .' join '. $db->quoteName('#__gwm_group_schedule').' fl on (a.'. $db->quoteName('gsid').'=fl.'. $db->quoteName('id').')'
+                        . ' WHERE 1'
+                        . $extraSQL
+                        . $orderBy;
+
+        $db->setQuery( $query );
+
+        try {
+                $result = $db->loadObjectList();
+        } catch (Exception $e) {
+                JFactory::getApplication()->enqueueMessage($e->getMessage(), 'error');
+        }
+
+        $usergroup=' AND a.id IN(0';
+
+        for ($i = 0; $i < count($result); $i++)
+        {
+            $usergroup.=','.$result[$i]->gsid;
+        }
+        $usergroup.=') ';
+
+        $orderBy	= '';
+        $extraSQL	= $usergroup;
+
+        $limitSQL = '';
+        $total		= 0;
+
+        $orderBy	= ' ORDER BY a.id DESC ';
+
+        $query	= 'SELECT a.* FROM '
+                        . $db->quoteName('#__gwm_group_schedule') . ' AS a '
+                        . ' WHERE 1'
+                        . $extraSQL
+                        . $orderBy;
+
+        $db->setQuery( $query );
+
+        try {
+                $result = $db->loadObjectList();
+        } catch (Exception $e) {
+                JFactory::getApplication()->enqueueMessage($e->getMessage(), 'error');
+        }
+
+        return $result;
+    }
+    
+	public function getGroupScheduleAcceptListPast( $userId )
 	{
 		$db		= $this->getDBO();
 
@@ -843,11 +1410,13 @@ class CommunityModelGroupschedule extends JCCModel
 		
 		$extraSQL	= ' AND a.userid=' . $db->Quote($userId);
 		$extraSQL.= ' AND a.status=' . $db->Quote(2);
+		$extraSQL.= ' AND fl.status=' . $db->Quote(2);
 		
 		$orderBy	= ' ORDER BY a.gsid DESC ';	
 
 		$query	= 'SELECT a.* FROM '
 				. $db->quoteName('#__gwm_group_schedule_accept') . ' AS a '
+				.' join '. $db->quoteName('#__gwm_group_schedule').' fl on (a.'. $db->quoteName('gsid').'=fl.'. $db->quoteName('id').')'
 				. ' WHERE 1'
 				. $extraSQL
 				. $orderBy;
@@ -895,6 +1464,39 @@ class CommunityModelGroupschedule extends JCCModel
 		
 	}
 	
+        public function getGroupSchedulePendingList( $userId )
+	{
+            $db		= $this->getDBO();
+
+            $orderBy	= '';
+
+            $extraSQL	= ' AND a.userid=' . $db->Quote($userId);
+            $extraSQL.= ' AND a.status=' . $db->Quote(1);
+
+            $orderBy	= ' ORDER BY a.gsid DESC ';	
+
+            $query	= 'SELECT a.*, fl.sdate, gc.Name FROM '
+                            . $db->quoteName('#__gwm_group_schedule_accept') . ' AS a '
+                            .' join '. $db->quoteName('#__gwm_group_schedule_date').' fl on (a.'. $db->quoteName('sdate').'=fl.'. $db->quoteName('id').')'
+                            .' join '. $db->quoteName('#__gwm_group_schedule').' sc on (a.'. $db->quoteName('gsid').'=sc.'. $db->quoteName('id').')'
+                            .' join '. $db->quoteName('#__gwm_courses').' gc on (sc.'. $db->quoteName('selcourse').'=gc.'. $db->quoteName('uid').')'
+                            . ' WHERE 1'
+                            . $extraSQL
+                            . $orderBy;
+
+            //echo $query;
+            $db->setQuery( $query );
+
+            try {
+                $result = $db->loadObjectList();
+            } catch (Exception $e) {
+                JFactory::getApplication()->enqueueMessage($e->getMessage(), 'error');
+            }
+
+            return $result;
+	
+	}
+        
 	public function getScheduleRequestorAcceptList( $userId )
 	{
 		$db		= $this->getDBO();
@@ -902,6 +1504,74 @@ class CommunityModelGroupschedule extends JCCModel
 		$orderBy	= '';
 		
 		$extraSQL	= ' AND a.uid=' . $db->Quote($userId);
+		$extraSQL.= ' AND a.status=' . $db->Quote(1);
+		
+		$orderBy	= ' ORDER BY a.id DESC ';	
+
+		$query	= 'SELECT a.* FROM '
+				. $db->quoteName('#__gwm_group_schedule') . ' AS a '
+				. ' WHERE 1'
+				. $extraSQL
+				. $orderBy;
+
+		$db->setQuery( $query );
+
+		try {
+			$result = $db->loadObjectList();
+		} catch (Exception $e) {
+			JFactory::getApplication()->enqueueMessage($e->getMessage(), 'error');
+		}
+		
+		$usergroup=' AND a.id IN(0';
+        for ($i = 0; $i < count($result); $i++)
+        {
+			$sDate = $this->getGroupScheduleDate($result[$i]->id);
+			$actcount=0;
+			foreach ( $sDate as $rowd ) {
+				$accmem= $this->getGroupScheduleAcceptCount($result[$i]->id,$rowd->id,2);
+				if($accmem>0)
+					$actcount=1;
+			}
+			if($actcount==1)
+            	$usergroup.=','.$result[$i]->id;
+        }
+		$usergroup.=') ';
+		
+		$orderBy	= '';
+		$extraSQL	= $usergroup;
+
+		$limitSQL = '';
+		$total		= 0;
+		
+		$orderBy	= ' ORDER BY a.id DESC ';
+
+		$query	= 'SELECT a.* FROM '
+				. $db->quoteName('#__gwm_group_schedule') . ' AS a '
+				. ' WHERE 1'
+				. $extraSQL
+				. $orderBy;
+				
+		$db->setQuery( $query );
+
+		try {
+			$result = $db->loadObjectList();
+		} catch (Exception $e) {
+			JFactory::getApplication()->enqueueMessage($e->getMessage(), 'error');
+		}
+		
+		return $result;
+
+		
+	}
+	
+	public function getScheduleRequestorAcceptListPast( $userId )
+	{
+		$db		= $this->getDBO();
+
+		$orderBy	= '';
+		
+		$extraSQL	= ' AND a.uid=' . $db->Quote($userId);
+		$extraSQL.= ' AND a.status=' . $db->Quote(2);
 		
 		$orderBy	= ' ORDER BY a.id DESC ';	
 
@@ -1041,6 +1711,42 @@ class CommunityModelGroupschedule extends JCCModel
 		
 	}
 	
+	public function getGroupScheduleApproveUser( $gsid, $sdate, $status = false )
+	{
+		$db		= $this->getDBO();
+
+		$orderBy	= '';
+
+		$limitSQL = '';
+		$total		= 0;
+		
+		$extraSQL	= ' AND a.gsid=' . $db->Quote($gsid);
+		$extraSQL.= ' AND a.sdate=' . $db->Quote($sdate);
+		$extraSQL.= ' AND a.status=' . $db->Quote(1);
+		
+		$orderBy	= ' ORDER BY a.id ASC ';	
+
+		$query	= 'SELECT a.* FROM '
+				. $db->quoteName('#__gwm_group_schedule_accept') . ' AS a '
+				. ' WHERE 1'
+				. $extraSQL
+				. $orderBy;
+
+		$db->setQuery( $query );
+
+		try {
+			$result = $db->loadObjectList();
+		} catch (Exception $e) {
+			JFactory::getApplication()->enqueueMessage($e->getMessage(), 'error');
+		}
+		
+		//print_r($result);
+		
+		return $result;
+
+		
+	}
+	
 	public function getScheduleDetails( $gsid)
 	{
 		$gsData = $this->getGroupSchedule($gsid);
@@ -1048,6 +1754,8 @@ class CommunityModelGroupschedule extends JCCModel
 		
 		$result = new stdClass();
 		$result->CourseName=$course->Name;
+                $result->teetime=$gsData->teetime;
+                $result->needCount=$gsData->responses;
 		
 		return $result;
 		

@@ -1,0 +1,9 @@
+cp /usr/share/nginx/html/components/com_community/models/groupschedule.php components/com_community/models
+cp -r /usr/share/nginx/html/components/com_community/views/groupschedule components/com_community/views
+cp -r /usr/share/nginx/html/components/com_community/templates/jomsocial/layouts/groupschedule components/com_community/templates/jomsocial/layouts
+cp -r /usr/share/nginx/html/components/com_community/templates/jomsocial/assets/css/images components/com_community/templates/jomsocial/assets/css
+cp /usr/share/nginx/html/components/com_community/templates/jomsocial/assets/css/jq* components/com_community/templates/jomsocial/assets/css
+cp /usr/share/nginx/html/components/com_community/templates/jomsocial/assets/js/jq* components/com_community/templates/jomsocial/assets/js
+cp /usr/share/nginx/html/components/com_community/controllers/groupschedule.php components/com_community/controllers
+zip -r community_groupschedule components
+

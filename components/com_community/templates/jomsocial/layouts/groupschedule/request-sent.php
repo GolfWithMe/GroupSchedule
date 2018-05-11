@@ -1,4 +1,5 @@
 <?php
+//GWMFile
 error_reporting(1);
 /**
 * @copyright (C) 2013 iJoomla, Inc. - All rights reserved.
@@ -28,10 +29,12 @@ defined('_JEXEC') or die();
             <form name="jsform-group-schedule" id="frmGroupSchedule" action="<?php echo CRoute::_('index.php?option=com_community&view=groupschedule&task=newrequest') ?>" method="POST" class="js-form">
                 <legend class="joms-form__legend">New Request</legend>
                 <div class="joms-form__group has-privacy" for="field2">
-                    <span title="Select Group">Select Members</span>
+                    <span title="Select Group">Select Golfers</span>
                     <select class="joms-select" name="selmember[]" id="selmember" size="10" multiple="multiple" data-required="true" required  >
                     <?php foreach($rows as $row) : ?>
+                        <?php if($my->id <> $row->id) { ?>
                         <option value="<?php echo $row->id; ?>" style="color:#666;" ><?php echo $row->name; ?></option>
+                        <?php } ?>
                     <?php endforeach; ?>
                     </select> 
                     <br />
@@ -49,7 +52,7 @@ defined('_JEXEC') or die();
             </form>
         
         <?php } else { ?>
-            <div class="cEmpty cAlert"><?php echo 'You have no members.'; ?></div>
+            <div class="cEmpty cAlert"><?php echo 'You have no golfers.'; ?></div>
         <?php } ?>
         </div>
     <?php } else if($step=="course") { ?>
@@ -59,9 +62,9 @@ defined('_JEXEC') or die();
                 <legend class="joms-form__legend">New Request</legend>
                 <div class="joms-form__group has-privacy" for="field2">
                     <span title="Select Group">Select Course</span>
-                    <label><input type="radio" name="coursetype" value="Favorites"  id="typefav" /> Favorites:</label>
-                    <select class="joms-select" name="selfavorite" id="selfavorite" >
-                    <option value="" >Select Course</option>
+                    <label><input type="radio" name="coursetype" value="Favorites"  id="typefav" /> Your Favorites:</label>
+                    <select class="joms-select" name="selfavorite" id="selfavorite" onclick="checksear('typefav');" >
+                    <option value="" >Select Course From This List</option>
                     <?php foreach($groupsFav as $row) : ?>
                         <option value="<?php echo $row->uid; ?>" ><?php echo $row->Name; ?></option>
                     <?php endforeach; ?>
@@ -69,9 +72,9 @@ defined('_JEXEC') or die();
                 </div>
                 <div class="joms-form__group has-privacy" for="field2">
                     <span></span>
-                    <label><input type="radio" name="coursetype" value="Local" id="typeloc" /> Local:</label>
-                    <select class="joms-select" name="sellocal" id="sellocal" >
-                    <option value="" >Select Course</option>
+                    <label><input type="radio" name="coursetype" value="Local" id="typeloc" /> Local Courses:</label>
+                    <select class="joms-select" name="sellocal" id="sellocal" onclick="checksear('typeloc');" >
+                    <option value="" >Select Course This List</option>
                     <?php foreach($groupsLoc as $row) : ?>
                         <option value="<?php echo $row->uid; ?>" ><?php echo $row->Name; ?></option>
                     <?php endforeach; ?>
@@ -79,15 +82,15 @@ defined('_JEXEC') or die();
                 </div>
                 <div class="joms-form__group has-privacy" for="field2">
                     <span></span>
-                    <label><input type="radio" name="coursetype" value="Search" id="typesea"  /> Search:</label>
-                    <input type="text" name="searchkey" id="searchkey" class="joms-text" value="<?php echo $fieldset['searchkey']; ?>" />
+                    <label><input type="radio" name="coursetype" value="Search" id="typesea"  /> Search for Courses:</label>
+                    <input type="text" name="searchkey" id="searchkey" class="joms-text" value="<?php echo $fieldset['searchkey']; ?>" onclick="checksear('typesea');" />
                     <br />
                     <span><input type="submit" class="joms-button--neutral joms-button--full-small joms-button--smallest" value="<?php echo "Search";?>"></span>
                     <?php if ( $fieldset['searchkey']!='' ) { ?>
-                    <select class="joms-select" name="selsearch" id="selsearch">
-                    <option value="" >Select Course</option>
+                    <select class="joms-select" name="selsearch" id="selsearch" onclick="checksear('typesea');">
+                    <option value="" >Select Course From This List</option>
                     <?php foreach($rows as $row) : ?>
-                        <option value="<?php echo $row->uid; ?>" ><?php echo $row->Name; ?></option>
+                        <option value="<?php echo $row->uid; ?>" ><?php echo $row->Name; ?> - <?php echo $row->City; ?>, <?php echo $row->State; ?></option>
                     <?php endforeach; ?>
                     </select> 
                     <?php } else { ?>
@@ -115,16 +118,16 @@ defined('_JEXEC') or die();
     	<div id="joms-profile--information" class="joms-tab__content">
             <form name="jsform-group-schedule" id="frmGroupSchedule" action="<?php echo CRoute::_('index.php?option=com_community&view=groupschedule&task=newrequest') ?>" method="POST" class="js-form" onsubmit="return checkcourse();">
                 <legend class="joms-form__legend">New Request - Select Options</legend>
-                <!--<div class="joms-form__group has-privacy" for="field2">
-                    <span>Max Picks : </span>
+                <div class="joms-form__group has-privacy" for="field2">
+                    <span>Golfers Needed : </span>
                     <input type="text" name="picks" class="joms-text"  />
                     <span>blank = no limit</span>
                 </div>
                 <div class="joms-form__group has-privacy" for="field2">
-                    <span>Max Responses : </span>
-                    <input type="text" name="responses" class="joms-text" />
-                    <span>blank = no max</span>
-                </div>-->
+                    <span><!-- Max Responses : --></span>
+                    <input type="hidden" name="responses" class="joms-text" value="10"/>
+                    <span><!-- blank = no max --></span>
+                </div>
                 <div class="joms-form__group has-privacy" for="field2">
                     <span></span>
                     <label><input type="checkbox" name="notify" value="notify" /> Notify On Each Response</label>
@@ -151,21 +154,23 @@ defined('_JEXEC') or die();
   <script src="<?php echo JURI::root(true); ?>/components/com_community/templates/jomsocial/assets/js/jquery-ui-timepicker-addon.js"></script>
   <script>
   $( function() {
-    //$( "#datepicker0" ).datetimepicker({showButtonPanel: true, showOtherMonths: true, selectOtherMonths: true, dateFormat: 'mm/dd/yy', timeInput: true, timeFormat: "hh:mm tt" });
-	//$( "#datepicker0" ).datepicker( "option", "dateFormat", "mm/dd/yy" );
+    $( "#datepicker0" ).datetimepicker({showButtonPanel: true, showOtherMonths: true, selectOtherMonths: true, dateFormat: 'mm/dd/yy', timeInput: true, stepMinute:15, hourMin:6, hourMax:20, controlType: 'select', oneLine: true, timeFormat: "hh:mm tt" });
+	$( "#datepicker0" ).datepicker( "option", "dateFormat", "mm/dd/yy" );
   } );
   
   function addcalender() {
 	//alert('ok');
 	var countrow= eval(document.getElementById('countf').value);
 		
-	$("#datepicker"+countrow ).datetimepicker({showButtonPanel: true, showOtherMonths: true, selectOtherMonths: true, dateFormat: 'mm/dd/yy', timeInput: true, stepMinute:15, hourMin:6, hourMax:20, controlType: 'select', oneLine: true, timeFormat: "hh:mm tt" });
-	$('#datepicker'+countrow).datetimepicker('show');
+	//$("#datepicker"+countrow ).datetimepicker({showButtonPanel: true, showOtherMonths: true, selectOtherMonths: true, dateFormat: 'mm/dd/yy', timeInput: true, stepMinute:15, hourMin:6, hourMax:20, controlType: 'select', oneLine: true, timeFormat: "hh:mm tt" });
+	//$('#datepicker'+countrow).datetimepicker('show');
 	
 	newrow=eval(countrow+1);
+	$("#container").append('<div class="joms-form__group has-privacy" for="field2" id="datediv'+newrow+'"><span><input type="button" onclick="removecal('+newrow+');" class="joms-button--primary joms-button--full-small" value="<?php echo "Remove";?>"></span><input type="text" name="datepicker[]" id="datepicker'+newrow+'" readonly="readonly"></div>');
+	
 	$("#datepicker"+newrow ).datetimepicker({showButtonPanel: true, showOtherMonths: true, selectOtherMonths: true, dateFormat: 'mm/dd/yy', timeInput: true, stepMinute:15, hourMin:6, hourMax:20, controlType: 'select', oneLine: true, timeFormat: "hh:mm tt" });
 	$('#datepicker'+newrow).datetimepicker('show');
-	$("#container").append('<div class="joms-form__group has-privacy" for="field2" id="datediv'+newrow+'"><span><input type="button" onclick="removecal('+newrow+');" class="joms-button--primary joms-button--full-small" value="<?php echo "Remove";?>"></span><input type="text" name="datepicker[]" id="datepicker'+newrow+'" readonly="readonly"></div>');
+	
 	//$("#container").append('<div class="joms-form__group has-privacy" for="field2" id="datediv'+newrow+'"><span><input type="button" onclick="removecal('+newrow+');" class="joms-button--primary joms-button--full-small" value="<?php //echo "Remove";?>"></span><input type="text" name="datepicker[]"></div>');
 	
 	document.getElementById("countf").value=newrow;
@@ -179,17 +184,17 @@ defined('_JEXEC') or die();
 	  //document.getElementById("countf").value=newrow;
   }
 	
-	$("#datepicker0").datetimepicker({showButtonPanel: true, showOtherMonths: true, selectOtherMonths: true, dateFormat: 'mm/dd/yy', timeInput: true, stepMinute:15, hourMin:6, hourMax:20,controlType: 'select', oneLine: true, timeFormat: "hh:mm tt" });
-	$('#datepicker0').datetimepicker('show');
+	//$("#datepicker0").datetimepicker({showButtonPanel: true, showOtherMonths: true, selectOtherMonths: true, dateFormat: 'mm/dd/yy', timeInput: true, stepMinute:15, hourMin:6, hourMax:20,controlType: 'select', oneLine: true, timeFormat: "hh:mm tt" });
+	//$('#datepicker0').datetimepicker('show');
   </script>
     	<div id="joms-profile--information" class="joms-tab__content">
             <form name="jsform-group-schedule" id="frmGroupSchedule" action="<?php echo CRoute::_('index.php?option=com_community&view=groupschedule&task=newrequest') ?>" method="POST" class="js-form" onsubmit="return checkcal();">
-                <legend class="joms-form__legend">Select Dates/Times you are available</legend>
+                <legend class="joms-form__legend">Select Dates and Times you are available to tee off.  You may pick as many dates and times as you would like:</legend>
                 <div id="container">
                     <div class="joms-form__group has-privacy" for="field3" id="datediv0">
                         <span>Add Date/Time</span>
                          <!--<input type="text" name="datepicker[]" data-required="true" required>-->
-                         <input type="text" name="datepicker[]" id="datepicker0" data-required="true" readonly="readonly" required>
+                         <input type="text" name="datepicker[]" id="datepicker0" readonly="readonly" style="cursor: pointer;">
                     </div>
                 </div>
                 <div class="joms-form__group has-privacy" for="field2">               
@@ -221,7 +226,7 @@ defined('_JEXEC') or die();
             <form name="jsform-group-schedule" id="frmGroupSchedule" action="<?php echo CRoute::_('index.php?option=com_community&view=groupschedule&task=newrequest') ?>" method="POST" class="js-form" onsubmit="return checkcourse();">
                 <legend class="joms-form__legend">New Request - Submit Request</legend>
                 <div class="joms-tab__content">
-                    <span>You are about submit a request to the group to find partners to play golf with.</span>
+                    <span>You are about submit a request to the group to find partners to play golf.</span>
                     <br /><br />
                     <span>If you are sure you are ready, Click the Submit button below.</span>
                 </div>
@@ -247,7 +252,7 @@ defined('_JEXEC') or die();
         </div>
     <?php } else if($step=="submitsucc") { ?>
     	<div id="joms-profile--information" class="joms-tab__content">
-                <legend class="joms-form__legend">New Request - Submit Successfully</legend>
+                <legend class="joms-form__legend">New Request - Submitted Successfully</legend>
                 <div class="joms-form__group has-privacy" for="field2">
                     <span>Group Schedule Request Sent Successfully.</span>
                 </div> 
@@ -285,6 +290,11 @@ defined('_JEXEC') or die();
     
 </div>
 <script>
+function checksear(option) {
+	//alert(option);
+	document.getElementById(option).checked = true;
+}
+
 function selectall(option) {
 	var sel = document.getElementById("selmember");
 	if(option=='None') {
@@ -297,6 +307,7 @@ function selectall(option) {
 		}
 	}
 }
+
 function checkcourse() {
 	
 	if(document.getElementById('typefav').checked) {
@@ -348,7 +359,7 @@ function checkcourse() {
 function checkcal() {
 	var calval= document.getElementById('datepicker0').value;
 	if(calval=="") {
-		alert("Click Add button for add date and time.");
+		alert("Please enter date and time.");
 		return false;
 	} 
 	return true;

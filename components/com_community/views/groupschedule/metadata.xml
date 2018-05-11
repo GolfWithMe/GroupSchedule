@@ -7,8 +7,11 @@
 			]]>
 		</message>
 		<options var="task">
- 			<default name="- View Requests" msg="Displays all Group Schedule for the user" />
-			<option value="newrequest" name="- New Request" msg="New Schedule Request" />
+ 			<default name="All Group Schedule" msg="Displays all Group Schedule for the user" />
+			<option value="newrequest" name="- New Schedule Request" msg="New Schedule Request" />
+			<option value="recresponse" name="- Schedule Response" msg="Displays a list of response the user recived." />
+			<option value="closerequest" name="- Schedule Close Request" msg="Displays a list of users awaiting for their schedule close request." />
+			<option value="acceptrequest" name="- Schedule Accept Request" msg="Displays a list of users schedule accept request." />
  		</options>
 	</view>
 	<state>

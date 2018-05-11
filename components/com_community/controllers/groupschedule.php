@@ -1,4 +1,5 @@
 <?php
+//GWMFile
 /**
  * @copyright (C) 2013 iJoomla, Inc. - All rights reserved.
  * @license GNU General Public License, version 2 (http://www.gnu.org/licenses/gpl-2.0.html)
@@ -24,9 +25,9 @@ class CommunityGroupscheduleController extends CommunityBaseController
     public function groupschedule()
     {
         $config = CFactory::getConfig();
-		$my = CFactory::getUser();
-		$mainframe = JFactory::getApplication();
-		$jinput = $mainframe->input;
+        $my = CFactory::getUser();
+        $mainframe = JFactory::getApplication();
+        $jinput = $mainframe->input;
 
         $document = JFactory::getDocument();
         $my = CFactory::getUser();
@@ -74,8 +75,40 @@ class CommunityGroupscheduleController extends CommunityBaseController
 		$data->fields = $postfields;
 		
 		//print_r($postfields);
-
+		
         echo $view->get('newrequest', $data);
+    }
+	
+	/**
+     * New Schedule Request
+     */
+    public function viewall()
+    {
+        $config = CFactory::getConfig();
+		$my = CFactory::getUser();
+		$mainframe = JFactory::getApplication();
+		$jinput = $mainframe->input;
+
+        if ($my->id == 0) {
+            return $this->blockUnregister();
+        }
+
+        $view = $this->getView('groupschedule');
+        $model = $this->getModel('groupschedule');
+
+        $data = new stdClass();
+        $rsent = $model->getSentRequest($my->id);
+
+        $data->sent = $rsent;
+        $data->pagination = $model->getPagination();
+		
+		//post fields
+		$postfields = $jinput->request->getArray();
+		$data->fields = $postfields;
+		
+		//print_r($postfields);
+		
+        echo $view->get('viewall', $data);
     }
 	
 	/**
@@ -133,11 +166,11 @@ class CommunityGroupscheduleController extends CommunityBaseController
         $data->sent = $rsent;
         $data->pagination = $model->getPagination();
 		
-		//post fields
-		$postfields = $jinput->request->getArray();
-		$data->fields = $postfields;
-		
-		//print_r($postfields);
+        //post fields
+        $postfields = $jinput->request->getArray();
+        $data->fields = $postfields;
+
+        //print_r($postfields);
 
         echo $view->get('closerequest', $data);
     }
@@ -172,6 +205,60 @@ class CommunityGroupscheduleController extends CommunityBaseController
 		//print_r($postfields);
 
         echo $view->get('acceptrequest', $data);
+    }
+	
+	
+	/**
+     * Reminder emails 
+     */
+    public function reminderemails()
+    {
+        $config = CFactory::getConfig();
+		
+		$mainframe = JFactory::getApplication();
+		$jinput = $mainframe->input;
+       
+        $view = $this->getView('groupschedule');
+        $groupsModel = $this->getModel('groupschedule');
+
+		$scheduleList = $groupsModel->getGroupScheduleEmail();
+		foreach ( $scheduleList as $rowsche ) {
+			$gsid=$rowsche->id;
+			$my = CFactory::getUser($rowsche->uid);
+			//email
+			$mailer = JFactory::getMailer();
+			$sender = array( 
+				$config->get( 'mailfrom' ),
+				$config->get( 'fromname' ) 
+			);
+			$mailer->setSender($sender);
+			
+			$subject='Invite Golf-With-Me '.$config->get('sitename');
+			$mailer->setSubject($subject);
+			
+			//user
+			$accMem = $groupsModel->getGroupScheduleMember($gsid);
+			//print_r($accMem);
+			foreach ( $accMem as $damem ) {
+				//echo $gsid. '-'. $damem->memid.'--';
+				//status
+				if($damem->status==0) {
+					$usr = CFactory::getUser($damem->memid);
+					$recipient = $usr->email;
+					$mailer->addRecipient($recipient);
+					
+					$body   = "Hi ".$usr->name." <br /><br /> This is the mail to inform you that. Your friend invited you for Golf-With-Me. <br /><br /> If you are interested, <a href='".JURI::base()."index.php?option=com_community&view=groupschedule'>click here.</a> <br /><br /> Thank You <br />The Golf With Me Team<br /><br /> <img src='".JURI::base()."images/gwmhorlogo2.png'>";
+					$mailer->isHtml(true);
+					$mailer->Encoding = 'base64';
+					$mailer->setBody($body);
+					$send = $mailer->Send();
+				}
+			}
+			//email
+		}
+		
+
+        echo "Done";
     }
 	
 

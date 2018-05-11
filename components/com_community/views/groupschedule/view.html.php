@@ -1,4 +1,5 @@
 <?php
+//GWMFile
 /**
  * @copyright (C) 2013 iJoomla, Inc. - All rights reserved.
  * @license GNU General Public License, version 2 (http://www.gnu.org/licenses/gpl-2.0.html)
@@ -41,7 +42,7 @@ class CommunityViewGroupschedule extends CommunityView {
          */
         CHeadHelper::setType('website', 'Golf-With-Me Request View');
 
-        //$this->showSubMenu();
+        $this->showSubMenu();
 		
 		//start new requests
 		//fields
@@ -53,10 +54,15 @@ class CommunityViewGroupschedule extends CommunityView {
 		
 		//$groupsModel = CFactory::getModel('groups');
 		$groupsModel = CFactory::getModel('groupschedule');
+                $courseModel = CFactory::getModel('courses');
+		
+		//expiry
+		$groupsModel->getExpireSchedule();
 		
 		
 		$step=$fields[stepset];
 		if($step=="submitresponse") {		
+			
 			if($fields[seldate]!='') {
 				$savedate = $groupsModel->addGroupScheduleAccept($my->id, $fields);
 				$mainframe->enqueueMessage('Schedule response successfully.', 'success');
@@ -69,54 +75,147 @@ class CommunityViewGroupschedule extends CommunityView {
 				);
 				$mailer->setSender($sender);
 
-				$subject='Accept Golf-With-Me '.$config->get('sitename');
-				$mailer->setSubject($subject);
+				
 
 				$gsData = $groupsModel->getGroupSchedule($fields['reqid']);
 				if($gsData->notify!="") {
 					$usr = CFactory::getUser($gsData->uid);
 					$recipient = $usr->email;
 					$mailer->addRecipient($recipient);
+					$course = $groupsModel->getCourseDetails($gsData->selcourse);
+					$acceptUser=$my->name;
 					
-					$body   = "Hi ".$usr->name." <br /> This is the mail to inform you that. Your friend accept your Golf-With-Me request. <br /><br /> If you want to interest, <a href='".JURI::base()."index.php?option=com_community&view=groupschedule'>click here.</a> <br /><br /> Thank You <br />".$my->getDisplayName();
+                                        $subject=$my->name . ' Accepted Your Golf-With-Me Request at ' . $course->Name;
+                                        $mailer->setSubject($subject);
+					$body   = "Hi ".$usr->name." <br /> Your friend ".$acceptUser." accepted your Golf-With-Me request at ".$course->Name.". <br /><br /> Please <a href='".JURI::base()."index.php?option=com_community&view=groupschedule'>click here to view the status of your request.</a>.<br /><br /> Thank You <br />The Golf With Me Team<br /><br /> <img src='".JURI::base()."images/gwmhorlogo2.png'>";
 					$mailer->isHtml(true);
 					$mailer->Encoding = 'base64';
 					$mailer->setBody($body);
 					$send = $mailer->Send();
 				}
 				//email
+				
+				//email notify
+				$memneed=$gsData->picks;
+				if($memneed!='') {
+					foreach($fields['seldate'] as $rowdate) {
+						$accda= $groupsModel->getDateCloseCount($fields['reqid'],$rowdate);
+						$accmem=$accda->completemem;
+						if($memneed==$accmem) {
+							$subject='One of your Golf-With-Me Requests Has Enough Golfers';
+							$mailer->setSubject($subject);
+							$usr = CFactory::getUser($gsData->uid);
+							$recipient = $usr->email;
+							$mailer->addRecipient($recipient);
+							
+							$body   = "Hi ".$usr->name." <br /><br /> This is to notify you that you have at least one date and time that has enough golfers. <br /><br /> Thank You <br />The Golf With Me Team<br /><br /> <img src='".JURI::base()."images/gwmhorlogo2.png'>";
+							$mailer->isHtml(true);
+							$mailer->Encoding = 'base64';
+							$mailer->setBody($body);
+							$send = $mailer->Send();	
+						}
+						
+					}
+				}
+				//email notify end
+				
 			} else {
-				$mainframe->enqueueMessage('Please select date.', 'error');
+				$mainframe->enqueueMessage('Please select a date.', 'error');
 				$newrequest = $groupsModel->getPendingSchedule($my->id);
 			}
 		} else if ($step=="cancel") {
 				$savedate = $groupsModel->addGroupScheduleCancel($my->id, $fields);
 				$mainframe->enqueueMessage('Schedule cancel successfully.', 'success');
 				$newrequest = $groupsModel->getPendingSchedule($my->id);
+		} else if ($step=="cancelrejected") {
+				$savedate = $groupsModel->addGroupScheduleCancelRejected($my->id, $fields);
+				$mainframe->enqueueMessage('Schedule rejected cancel successfully.', 'success');
+				$newrequest = $groupsModel->getPendingSchedule($my->id);
+		} else if ($step=="rejected") {
+			$newrequest = $groupsModel->getRejectedSchedule($my->id);
 		} else {
 			$newrequest = $groupsModel->getPendingSchedule($my->id);
 		}
 		
+		$findModel = CFactory::getModel('findgolfers');
+		//expiry
+		$findModel->getExpireSchedule();
+		if ($step=="rejected") {
+			$findnewrequest = $findModel->getRejectedSchedule($my->id);
+		} else {
+			$findnewrequest = $findModel->getPendingSchedule($my->id);
+		}
 		//end new requests
 		
 		//start close their requests
 		$step=$fields[stepset];
 		if($step=="accept") {
 			$savedate = $groupsModel->updateRequestorAccept($my->id, $fields);
-			$mainframe->enqueueMessage('Requestor Accept successfully.', 'success');
-			$closerequest = $groupsModel->getGroupScheduleListClose($my->id);
+			$mainframe->enqueueMessage('Request Closed and Tee-Time recorded successfully.', 'success');
+			//$requestrecord = $groupsModel->getGroupScheduleListClose($my->id);
+                        $requestdetails = $groupsModel->getScheduleDetails($fields['req']);
+                        $coursedata = $courseModel->getCourseDetails($closerequest[0]->selcourse);
+                        
+                        //print_r($fields);
+                        //print_r($requestdetails);
+                        //print_r($closerequest);
+                        //print_r($coursedata);
+			//email
+			
+			
+			$gsid=$fields['req'];
+			$gsData = $groupsModel->getGroupSchedule($gsid);
+			//date
+			$scheduleDate = $groupsModel->getGroupScheduleDate($gsid);
+			foreach ( $scheduleDate as $rowdate ) {
+                            $accda= $groupsModel->getDateAcceptCount($gsid,$rowdate->id);
+                            if($accda->actmem>0) { 
+                                //user
+                                $accMem = $groupsModel->getGroupScheduleAcceptMember($gsid,$rowdate->id);
+                                foreach ( $accMem as $damem ) {
+                                    $mailer = JFactory::getMailer();
+                                    $sender = array( 
+                                            $config->get( 'mailfrom' ),
+                                            $config->get( 'fromname' ) 
+                                    );
+                                    $mailer->setSender($sender);
+
+                                    $subject='Final Tee-Time set for  ' . $coursedata->Name;
+                                    $mailer->setSubject($subject);
+                                    
+                                    $usr = CFactory::getUser($damem->userid);
+                                    $recipient = $usr->email;
+                                    $mailer->addRecipient($recipient);
+
+                                    $body   = "Hi ".$usr->name." <br /><br /> This e-mail is to inform you that the final tee-time for the event at " . $requestdetails->CourseName . " is " . $gsData->teetime . ". <br /><br /> For more details, <a href='".JURI::base()."index.php?option=com_community&view=groupschedule'>click here.</a> <br /><br /> Thank You <br />The Golf With Me Team<br /><br /> <img src='".JURI::base()."images/gwmhorlogo2.png'>";
+                                    $mailer->isHtml(true);
+                                    $mailer->Encoding = 'base64';
+                                    $mailer->setBody($body);
+                                    $send = $mailer->Send();
+                                }
+                            }
+			}
+
+			//email
 		} else if ($step=="cancelclose") {
 			$savedate = $groupsModel->updateRequestorCancel($my->id, $fields);
 			$mainframe->enqueueMessage('Requestor cancel successfully.', 'success');
 			$closerequest = $groupsModel->getGroupScheduleListClose($my->id);
 		} else {
-			$closerequest = $groupsModel->getGroupScheduleListClose($my->id);
+			$closerequest = $groupsModel->getGroupScheduleListCloseNoAccepts($my->id);
+                        //$closerequest = $groupsModel->getGroupScheduleListClose($my->id);
 		}
+		
+		$findcloserequest = $findModel->getFindGolfersListClose($my->id);
 		//end close their requests
 		
 		//start upcoming events
 		$requstorupcomming = $groupsModel->getScheduleRequestorAcceptList($my->id);
 		$userupcomming = $groupsModel->getGroupScheduleAcceptList($my->id);
+		
+		$findrequstorupcomming = $findModel->getScheduleRequestorAcceptList($my->id);
+		$finduserupcomming = $findModel->getFindGolfersAcceptList($my->id);
+		//print_r($finduserupcomming);
 		//end upcoming events
 		
 		//all schedule
@@ -125,17 +224,23 @@ class CommunityViewGroupschedule extends CommunityView {
 
         $tmpl = new CTemplate();
         echo $tmpl->set('my', $my)
-                ->set('config', $config)
-                ->set('rows', $groupschedule)
-				->set('newrequest', $newrequest)
-				->set('closerequest', $closerequest)
-				->set('requstorupcomming', $requstorupcomming)
-				->set('userupcomming', $userupcomming)
-                //->set('pagination', $data->pagination)
-                ->fetch('groupschedule/list');
+            ->set('config', $config)
+            ->set('rows', $groupschedule)
+            ->set('newrequest', $newrequest)
+            ->set('closerequest', $closerequest)
+            ->set('requstorupcomming', $requstorupcomming)
+            ->set('userupcomming', $userupcomming)
+            ->set('findnewrequest', $findnewrequest)
+            ->set('findcloserequest', $findcloserequest)
+            ->set('findrequstorupcomming', $findrequstorupcomming)
+            ->set('finduserupcomming', $finduserupcomming)
+            ->set('step', $step)
+            //->set('pagination', $data->pagination)
+                            //->set('submenu', $this->showSubmenu(false))
+            ->fetch('groupschedule/list');
     }
 	
-	public function newrequest($data = null) {
+    public function newrequest($data = null) {
         $mainframe = JFactory::getApplication();
 		$jinput = $mainframe->input;
 
@@ -238,20 +343,8 @@ class CommunityViewGroupschedule extends CommunityView {
 			$savedate = $groupsModel->addGroupSchedule($my->id, $fieldset);
 			//print_r($savedate);
 			
-			//email
-			$mailer = JFactory::getMailer();
-			$sender = array( 
-				$config->get( 'mailfrom' ),
-				$config->get( 'fromname' ) 
-			);
-			$mailer->setSender($sender);
-			//$user = JFactory::getUser();
-			//$recipient = $user->email;
-			//$recipient = array( 'onlinemithun@gmail.com');
-			//$mailer->addRecipient($recipient);
 			
-			$subject='Invite Golf-With-Me '.$config->get('sitename');
-			$mailer->setSubject($subject);
+			
 			
 			//if ( $send !== true ) {
 				//echo 'Error sending email: ';
@@ -259,15 +352,32 @@ class CommunityViewGroupschedule extends CommunityView {
 				//echo 'Mail sent';
 			//}
 			foreach($fields[selmember] as $rowmem) {
-				$usr = CFactory::getUser($rowmem);
-				$recipient = $usr->email;
-				$mailer->addRecipient($recipient);
-				
-				$body   = "Hi ".$usr->name." <br /> This is the mail to inform you that. Your friend invited you for Golf-With-Me. <br /><br /> If you want to interest, <a href='".JURI::base()."index.php?option=com_community&view=groupschedule'>click here.</a> <br /><br /> Thank You <br />".$my->getDisplayName();
-				$mailer->isHtml(true);
-				$mailer->Encoding = 'base64';
-				$mailer->setBody($body);
-				$send = $mailer->Send();
+                            //email
+                            $mailer = JFactory::getMailer();
+                            $sender = array( 
+                                $config->get( 'mailfrom' ),
+                                $config->get( 'fromname' ) 
+                            );
+                            
+                            $mailer->setSender($sender);
+                            $userOwner = JFactory::getUser();
+                            $sendName= $userOwner->name;
+
+
+                            $subject='Invite from Golf-With-Me from '.$sendName;
+                            $mailer->setSubject($subject);
+                            
+                            $usr = CFactory::getUser($rowmem);
+                            $recipient = $usr->email;
+                            $mailer->addRecipient($recipient);
+
+                            $course = $groupsModel->getCourseDetails($fields[selcourse]);
+
+                            $body   = "Hi ".$usr->name." <br /><br />Your Friend ".$sendName." invited you to Golf-With-Me at ".$course->Name." Golf Course. " . $fields[picks] . " golfers are needed.  Can you play? Please <a href='".JURI::base()."index.php?option=com_community&view=groupschedule'>click here.</a> to respond. <br /><br /> Thank You <br />The Golf With Me Team<br /><br /> <img src='".JURI::base()."images/gwmhorlogo2.png'>";
+                            $mailer->isHtml(true);
+                            $mailer->Encoding = 'base64';
+                            $mailer->setBody($body);
+                            $send = $mailer->Send();
 			}
 			//email
 
@@ -275,7 +385,7 @@ class CommunityViewGroupschedule extends CommunityView {
 			//$groupsModel = CFactory::getModel('groups');
 			$groupsModel = CFactory::getModel('groupschedule');
 			$sorted = $jinput->get->get('sort', 'latest', 'STRING');
-			$groups = $groupsModel->getGroups(null,$sorted);
+			$groups = $groupsModel->getGroups($my->id);
 		}
 		//die();
 		//print_r($groups);
@@ -293,7 +403,112 @@ class CommunityViewGroupschedule extends CommunityView {
                 ->fetch('groupschedule/request-sent');
     }
 	
-	public function recresponse($data = null) {
+    public function viewall($data = null) {
+        $mainframe = JFactory::getApplication();
+		$jinput = $mainframe->input;
+
+        // Load necessary window css / javascript headers.
+        CWindow::load();
+
+        $config = CFactory::getConfig();
+        $my = CFactory::getUser();
+
+        if ($my->id == 0) {
+            $mainframe->enqueueMessage(JText::_('COM_COMMUNITY_PLEASE_LOGIN_WARNING'), 'error');
+            return;
+        }
+
+        /**
+         * Opengraph
+         */
+        CHeadHelper::setType('website', 'Golf-With-Me View List');
+
+        $this->showSubMenu();
+		
+		//fields
+		$fields=$data->fields;
+		//print_r($fields);
+		//print_r($_POST);
+		//$fieldset = array();
+		
+		
+		//$groupsModel = CFactory::getModel('groups');
+		$groupsModel = CFactory::getModel('groupschedule');
+		$golfersModel = CFactory::getModel('findgolfers');
+		
+		
+		$step=$fields[stepset];
+		$actstep=$fields[actstep];
+		if($step=="created") {		
+			//group
+			if($actstep=='editdate') {
+				$savedate = $groupsModel->updateRequestDate($fields);
+				$mainframe->enqueueMessage('Request date update successfully.', 'success');
+			}
+			if($actstep=='deldate') {
+				$savedate = $groupsModel->deleteRequestDate($fields);
+				$mainframe->enqueueMessage('Request date delete successfully.', 'success');
+			}
+			$rowgroups = $groupsModel->getGroupScheduleList($my->id);
+			
+			//golfer
+			if($actstep=='editdateg') {
+				$savedate = $golfersModel->updateRequestDate($fields);
+				$mainframe->enqueueMessage('Request date update successfully.', 'success');
+			}
+			if($actstep=='deldateg') {
+				$savedate = $golfersModel->deleteRequestDate($fields);
+				$mainframe->enqueueMessage('Request date delete successfully.', 'success');
+			}
+			$rowgolfers = $golfersModel->getFindGolfersList($my->id);
+		
+		} else if ($step=="response") {
+				//group
+				if($actstep=='canreq') {
+					$savedate = $groupsModel->userScheduleAcceptUpdate($fields);
+					$mainframe->enqueueMessage('Request cancel successfully.', 'success');
+				}
+				$rowgroups = $groupsModel->getUserAcceptSchedule($my->id);
+				
+				//golfer
+				if($actstep=='canreqg') {
+					$savedate = $golfersModel->userScheduleAcceptUpdate($fields);
+					$mainframe->enqueueMessage('Request cancel successfully.', 'success');
+				}
+				$rowgolfers = $golfersModel->getUserAcceptSchedule($my->id);
+			
+		} else if ($step=="pastevents") {
+			
+			$requstorupcomming = $groupsModel->getScheduleRequestorAcceptListPast($my->id);
+			$userupcomming = $groupsModel->getGroupScheduleAcceptListPast($my->id);
+			
+			$findrequstorupcomming = $golfersModel->getScheduleRequestorAcceptListPast($my->id);
+			$finduserupcomming = $golfersModel->getFindGolfersAcceptListPast($my->id);
+			
+		} else if ($step=="cancel") {
+				$savedate = $groupsModel->addGroupScheduleCancel($my->id, $fields);
+				$mainframe->enqueueMessage('Schedule cancel successfully.', 'success');
+				$schedule = $groupsModel->getPendingSchedule($my->id);
+		} else {
+			$rowgroups = $groupsModel->getPendingSchedule($my->id);
+		}
+		
+		//print_r($groups);
+        $tmpl = new CTemplate();
+        echo $tmpl->set('my', $my)
+                ->set('config', $config)
+                ->set('rowsgroup', $rowgroups)
+				->set('rowsgolfers', $rowgolfers)
+				->set('requstorupcomming', $requstorupcomming)
+				->set('userupcomming', $userupcomming)
+				->set('findrequstorupcomming', $findrequstorupcomming)
+				->set('finduserupcomming', $finduserupcomming)
+				->set('step', $step)
+                //->set('pagination', $data->pagination)
+                ->fetch('groupschedule/viewall');
+    }
+	
+    public function recresponse($data = null) {
         $mainframe = JFactory::getApplication();
 		$jinput = $mainframe->input;
 
@@ -362,7 +577,7 @@ class CommunityViewGroupschedule extends CommunityView {
                 ->fetch('groupschedule/request-received');
     }
 	
-	public function closerequest($data = null) {
+    public function closerequest($data = null) {
         $mainframe = JFactory::getApplication();
 		$jinput = $mainframe->input;
 
@@ -399,13 +614,32 @@ class CommunityViewGroupschedule extends CommunityView {
 		if($step=="accept") {
 			$savedate = $groupsModel->updateRequestorAccept($my->id, $fields);
 			$mainframe->enqueueMessage('Requestor Accept successfully.', 'success');
-			$schedule = $groupsModel->getGroupScheduleList($my->id);
+			$schedule = $groupsModel->getGroupScheduleListClose($my->id);
 		} else if ($step=="cancel") {
 			$savedate = $groupsModel->updateRequestorCancel($my->id, $fields);
 			$mainframe->enqueueMessage('Requestor cancel successfully.', 'success');
-			$schedule = $groupsModel->getGroupScheduleList($my->id);
+			$schedule = $groupsModel->getGroupScheduleListClose($my->id);
+		} else if ($step=="acceptcourse") {
+			$fieldset['req']=$fields[req];
+			$fieldset['sd']=$fields[sd];
+			$fieldset['step']=$step;
+			$schedule = $groupsModel->getGroupScheduleListClose($my->id);
+			
+		} else if ($step=="acceptteetime") {
+			$fieldset['req']=$fields[req];
+			$fieldset['sd']=$fields[sd];
+			$fieldset['member']=$fields[member];
+			$memcount=count($fields[member]);
+			if($memcount<1) {
+				$fieldset['step']="acceptcourse";
+				$mainframe->enqueueMessage('Please select Golfers.', 'error');
+			} else {
+				$fieldset['step']=$step;
+			}
+			$schedule = $groupsModel->getGroupScheduleListClose($my->id);
+			
 		} else {
-			$schedule = $groupsModel->getGroupScheduleList($my->id);
+			$schedule = $groupsModel->getGroupScheduleListClose($my->id);
 		}
 		
 		//print_r($groups);
@@ -413,11 +647,12 @@ class CommunityViewGroupschedule extends CommunityView {
         echo $tmpl->set('my', $my)
                 ->set('config', $config)
                 ->set('rows', $schedule)
-                ->set('pagination', $data->pagination)
+				->set('fieldset', $fieldset)
+                //->set('pagination', $data->pagination)
                 ->fetch('groupschedule/request-closed');
     }
 	
-	public function acceptrequest($data = null) {
+    public function acceptrequest($data = null) {
         $mainframe = JFactory::getApplication();
 		$jinput = $mainframe->input;
 
@@ -474,19 +709,29 @@ class CommunityViewGroupschedule extends CommunityView {
             require_once (JPATH_COMPONENT . '/libraries/advancesearch.php');
             $mySQLVer = CAdvanceSearch::getMySQLVersion();
         }
+		
+		$this->addSubmenuItem('index.php?option=com_community&view=groupschedule', JText::_('View All'));
+                $this->addSubmenuItem('index.php?option=com_community&view=findgolfers&task=recresponse', JText::_('You Might Be Interested'));
+		//$this->addSubmenuItem('index.php?option=com_community&view=groupschedule&task=viewall&stepset=created', JText::_('Your Past Requests'));
+		//$this->addSubmenuItem('index.php?option=com_community&view=groupschedule&task=viewall&stepset=response', JText::_('Response Request'));
+		//$this->addSubmenuItem('index.php?option=com_community&view=groupschedule&stepset=rejected', JText::_('Rejected Request'));
+		
+		//$this->addSubmenuItem('index.php?option=com_community&view=groupschedule&task=viewall&stepset=pastevents', JText::_('Past Events'));
+		
+		/*
 
-        if($task != 'sent' && $task != 'pending' ) {
-            $this->addSubmenuItem('index.php?option=com_community&view=groupschedule',
-                JText::_('COM_COMMUNITY_FRIENDS_VIEW_ALL'));
+        //if($task != 'sent' && $task != 'pending' ) {
+            $this->addSubmenuItem('index.php?option=com_community&view=groupschedule', JText::_('COM_COMMUNITY_FRIENDS_VIEW_ALL'));
             //$this->addSubmenuItem('index.php?option=com_community&view=search&task=advancesearch', JText::_('COM_COMMUNITY_CUSTOM_SEARCH'));
             //$this->addSubmenuItem('index.php?option=com_community&view=groupschedule&task=invite', JText::_('COM_COMMUNITY_INVITE_FRIENDS'));
-        }
+        //}
 
         $tmpl = new CTemplate();
         $tmpl->set('url', CRoute::_('index.php?option=com_community&view=search'));
         $html = $tmpl->fetch('search.submenu');
         $this->addSubmenuItem('index.php?option=com_community&view=groupschedule&task=sent', JText::_('COM_COMMUNITY_FRIENDS_REQUEST_SENT'));
         $this->addSubmenuItem('index.php?option=com_community&view=groupschedule&task=pending', JText::_('COM_COMMUNITY_FRIENDS_PENDING_APPROVAL'));
+		*/
     }
 
     public function showSubmenu($display=true) {
