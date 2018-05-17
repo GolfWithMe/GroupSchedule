@@ -1,3 +1,4 @@
+cp /usr/share/nginx/html/components/com_community/models/groups.php components/com_community/models
 cp /usr/share/nginx/html/components/com_community/models/groupschedule.php components/com_community/models
 cp -r /usr/share/nginx/html/components/com_community/views/groupschedule components/com_community/views
 cp -r /usr/share/nginx/html/components/com_community/templates/jomsocial/layouts/groupschedule components/com_community/templates/jomsocial/layouts
